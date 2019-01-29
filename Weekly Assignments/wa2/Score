@@ -1,0 +1,99 @@
+All tests in the testMain.cpp file which makes it slow to iterate the
+test, fail, write, test cycle.  Refactor the testMain.cpp into individual
+test files for faster compiling.
+
+Looking at your tests for isOdd, did you really go through this progression:
+
+IntegerInfo info(1)
+IntegerInfo info(2)
+IntegerInfo info(0)
+IntegerInfo info(-2)
+IntegerInfo info(-1)
+IntegerInfo info(2147483647)
+IntegerInfo info(-2147483647)
+
+Because I can't figure out how each one of those tests would have failed and
+motivated the need for the next test.  I'm looking at the code:
+
+bool IntegerInfo::isOdd()
+{
+}
+
+That would have failed the first
+
+bool IntegerInfo::isOdd()
+{
+   if (integer % 2 == 1)
+      return true;
+   else
+      return false;
+}
+
+That would have failed the 2nd test.  If the next test was for 0, I don't
+see how that would have failed.  Then if you wrote
+
+IntegerInfo info(-2)  that would have failed prompting
+
+bool IntegerInfo::isOdd()
+{
+   if (integer % 2 == 1 || integer % 2 == -1)
+      return true;
+   else
+      return false;
+}
+
+I don't see how any of the rest of the tests failed.  Are the required?
+Then, for isEven:
+
+bool IntegerInfo::isEven()
+{
+}
+
+Would have failed the first causing you to write:
+
+bool IntegerInfo::isEven()
+{
+   return !isOdd();
+}
+
+but then I'm hard pressed to see if any of the others failed.  Can you envision
+a case where just one of the isEven or isOdd tests fail in isolation?  If not
+then you probably have redundant tests.
+
+Your tests look pretty good.  One other comment I would have concerns the
+use of REQUIRE in test cases with multiple asserts like:
+
+TEST_CASE("Check getPrimes to make sure 10 returns 1,2, and 5")
+{
+        IntegerInfo info(10);
+        list<int> test = info.getPrimes();
+        REQUIRE(test.size() == 3);
+        REQUIRE(test.front() == 1);
+        test.pop_front();
+        REQUIRE(test.front() == 2);
+        test.pop_front();
+        REQUIRE(test.front() == 5);
+}
+
+Multiple REQUIRE assertions per test which means the first failure causes
+the rest to not run.  This will slow down your fixing of problems if a change
+causes multiple failures.  The CHECK assertion reports a failure but allows
+the test to continue running.
+
+So, in the test above if the REQUIRE(test.front() == 2) fails then you'll not
+be informed if the REQUIRE(test.front() == 5) also fails.  Another way to do
+this sort of multi-value checking would be:
+
+TEST_CASE("Prime Factors of 3*3*7*11*23 Should be {3, 3, 7, 11, 23}", "[factors]")
+{
+   IntegerInfo info(3*3*7*11*23);
+   std::vector<int> answer {3, 3, 7, 11, 23};
+
+   REQUIRE(info.getPrimes() == answer);
+}
+
+Given the test name, the construction of the info object and the initialization
+of the answer vector, we have lots of information for debugging if this test
+were to fail.
+
+13.5/15

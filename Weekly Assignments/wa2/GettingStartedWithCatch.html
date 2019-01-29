@@ -1,0 +1,201 @@
+<html>
+<title>Getting started with Catch C++</title>
+<body>
+<hr>
+<h1><center>Getting started with Catch C++</center></h1>
+<hr>
+Catch is an include file only unit test framework developed by Phil Nash.  It's
+an easy way to start unit testing C++ code without the overhead of a complicated
+testing framework.
+<p>
+The Catch header file can be downloaded from the github repository via cloning
+or using wget to grab the latest catch.hpp file.
+<pre>
+wget https://github.com/philsquared/Catch/releases/download/v1.10.0/catch.hpp
+</pre>
+<p>
+The repository includes a <a href="https://github.com/philsquared/Catch/blob/master/docs/tutorial.md">tutorial</a> with a simple example as well as a 
+<a href="https://github.com/philsquared/Catch/blob/master/docs/Readme.md">reference</a> that describes:
+<ul>
+<li> Writing tests</li>
+<li> Fine Tuning</li>
+<li> Running</li>
+<li> A FAQ</li>
+<li> General contribution, projects using Catch and release notes</li>
+</ul>
+The tutorial walks through a very simple example of writing some tests for
+a simple C++ class and the steps we would take to start learning about
+Test Driven Development (TDD).
+<p>
+The simple rules for TDD are (also found on Wikipedia):
+<ol>
+<li> Add a test</li>
+<li> Run all tests and see the new test fail</li>
+<li> Write only enough code to make the test pass</li>
+<li> Run the tests and see them all pass</li>
+<li> Refactor code</li>
+<li> Repeat as necessary</li>
+</ol>
+<hr>
+<b>A simple example</b><br>
+<hr>
+The requirement is to create a C++ class named IntegerInfo.  We'll work through
+a simple example of using TDD and creating unit tests during our development
+of this class.  Some of the features of the class we're going to develop include
+<ul>
+<li> Detect if a number is composite</li>
+<li> Detect if a number is prime</li>
+<li> Produce a list of prime factors of a number</li>
+<li> Detect if a number is even or odd</li>
+<li> Report the number of ones in the binary representation of the number</li>
+</ul>
+<p>
+Start with a test which simply tries to instantiate an object of our IntegerInfo
+class.
+<p>
+<pre>
+main.cpp:
+#define CATCH_CONFIG_MAIN
+
+#include "catch.hpp"
+
+TEST_CASE("Create an IntegerInfo object")
+{
+   IntegerInfo info;
+}
+</pre>
+A failure to compile is a failure.  Obviously this will not compile because
+we've yet to even create the class in question.  Trying to compile this:
+<pre>
+% g++ -o main main.cpp -std=c++11 -Wall -Werror
+main.cpp: In function 'void ____C_A_T_C_H____T_E_S_T____0()':
+main.cpp:7:4: error: 'IntegerInfo' was not declared in this scope
+    IntegerInfo info;
+    ^
+main.cpp:7:16: error: expected ';' before 'info'
+    IntegerInfo info;
+                ^
+</pre>
+Depending on your version of the g++ compiler, it will produce something like
+the above compilation error.  As expected, the compilation was a failure since
+'IntegerInfo' was not declared in this scope.
+<p>
+The rules say, write just enough code to make this failure go away.  We will
+add the following:
+<pre>
+class IntegerInfo
+{
+};
+</pre>
+Compiling this file now succeeds.  We can run this test and see that one test
+is run and passes and there were no assertions.  At this point we could go
+through a refactoring step but it's a little early to start that so we'll just
+go back to step one and write another test.
+<p>
+The test we wrote tests to see if a default IntegerInfo object can be created,
+let's see if we can instantiate an IntegerInfo object with a parameter:
+<pre>
+TEST_CASE("Create an IntegerInfo object from a literal integer")
+{
+   IntegerInfo info(100);
+}
+</pre>
+As expected, compiling this test will fail in compilation because there is not
+currently a constructor that takes an integer parameter.
+<p>
+Modify the class definition as follows:
+<pre>
+class IntegerInfo
+{
+   int theNumber;
+public:
+   IntegerInfo(int num) : theNumber(num) {}
+};
+</pre>
+Rerun the tests but the compilation still fails.  This is because once we
+create a non-default constructor, the compiler stops providing the default
+constructors.  We need to further modify our class definition as follows:
+<pre>
+class IntegerInfo
+{
+   int theNumber;
+public:
+   IntegerInfo() {}
+   IntegerInfo(int num) : theNumber(num) {}
+};
+</pre>
+Now we see that two test cases are run and pass but still no assertions.
+Again, looking at refactoring it's still reasonable to defer that for the
+moment.  We want to more fairly quickly during the early stages of development
+and unnecessary refactorings will not benefit the early stages.  Of course,
+we could have changed the constructor to accept an optional parameter as
+well.
+<p>
+Let's pick one of the member functions described in the capabilities we want
+for the class.  Deciding whether or not the object represents an odd number.
+<p>
+<b>Write the test</b><br>
+<pre>
+TEST_CASE("Test for odd and even numbers")
+{
+   IntegerInfo info(1);
+   REQUIRE(info.isOdd() == true);
+}
+</pre>
+The compilation will fail because the member function does not exist.  We add
+the member function and try again:
+<pre>
+class IntegerInfo
+{
+   int theNumber;
+public:
+   IntegerInfo() {}
+   IntegerInfo(int num) : theNumber(num) {}
+
+   bool isOdd() { return false; }
+};
+</pre>
+<b>Note:</b> We just pick either true or false for the function to return for
+now.  Again, we just want enough code for the last failure to pass.  It may
+mean we get another failure but we're incrementally moving forward.
+<p>
+Sure enough, the tests now compile but the assertion fails.  We picked the
+isOdd function to just always return false and our assertion <i>REQUIRE(info.isOdd() == true)</i> requires isOdd for the number '1' to return true.
+<p>
+At this point we want to write enough code for our current failure to pass.
+<pre>
+   bool isOdd() { return (theNumber % 2 == 1); }
+</pre>
+Now we see three tests run, all passing and one assertion.  We can now add
+some more tests in this test case.
+<pre>
+   IntegerInfo number0(0);
+   REQUIRE(number0.isOdd() == false);
+   IntegerInfo number2(2);
+   REQUIRE(number0.isOdd() == false);
+</pre>
+This process is repeated for the requirements of the IntegerInfo class.  After
+adding another method (perhaps isEven() or isPrime()) we would probably take
+the opportunity to perform a first round of refactoring.  Breaking out the
+interface from the implementation into separate files.  We would also want
+to write a compilation script or Makefile which will build and then run the
+tests with a single command.
+<p>
+<b>Git behavior</b><br>
+As we are working through these tests and methods, we will want to be making
+commits to the repository every time we get something working.  For example,
+after the initial test (the one where all we do is try to construct an object)
+we would want to commit the file with a comment indicating an initial state.
+As more tests are added and code is written to get them working, additional
+commits are made.  Try to avoid committing code that does not compile or has
+failures when running.  There are several reasons for this rule of thumb.
+First, it's aways easier to return to working code/tests.  If the first thing
+you see is a compiler error or test failures it's hard to get excited to
+work on the application.  Second, when you work in a team most organizations
+have strict rules against committing known, non-working code.  It's a huge
+no-no to commit non-compiling code.  Finally, you want to leave your repository
+in a state in which you can share, release, or publish it at a moment's notice.
+While it's true you will not always have code that is meant to be shared, there
+are times when it's important and you want to develop good habits.
+</body>
+</html>

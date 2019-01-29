@@ -1,0 +1,76 @@
+#!/bin/bash
+
+files=`ls *.cpp`
+isfirst=1
+mainfound=0
+
+if [ "$files" == "" ]; then
+	printf "No files found, aborting\n"
+	exit
+fi
+
+printf "SOURCE = " > Makefile
+
+for file in $files
+do
+	r1=`grep "int main(" $file`
+	r2=`grep "int main (" $file`
+	if [ "$r1" != "" ] || [ "$r2" != "" ]; then
+		if [ "$mainfound" == 1 ]; then
+			printf "Multiple files were found with a 'main' entry point.  It is\n";
+			printf "unlikely that the executable will build and run correctly\n";
+			mainfound=2
+		elif [ "$mainfound" == 0 ]; then
+			main=${file%.cpp}
+			mainfound=1
+		fi
+	fi
+	if [ "$isfirst" == 1 ]; then
+		printf "$file " >> Makefile
+		isfirst=0
+	else
+		printf '\\\n         ' >> Makefile
+		printf "$file " >> Makefile
+	fi
+done
+
+if [ "$mainfound" == "0" ]; then
+	printf "Unable to find an entry point \"main\", aborting\n"
+	[ -e Makefile ] && rm Makefile
+	exit
+fi
+
+printf '\n\nOBJS = $(SOURCE:.cpp=.o)' >> Makefile
+printf '\n\n#GNU C/C++ Compiler\nGCC = g++' >> Makefile
+printf '\n\n# GNU C/C++ Linker\nLINK = g++' >> Makefile
+printf '\n\n# Compiler flags\nINC =\n' >> Makefile
+printf 'CFLAGS = -Wall -O3 -std=c++11 $(INC)\nCXXFLAGS = $(CFLAGS)' >> Makefile
+printf '\n\n# Fill in special libraries needed here\nLIBS =' >> Makefile
+printf '\n\n.PHONY: clean' >> Makefile
+printf '\n\n# Targets include all, clean, debug, tar\n\n' >> Makefile
+printf "all : $main" >> Makefile
+printf '\n\n' >> Makefile
+printf "$main" >> Makefile
+printf ': $(OBJS)\n' >> Makefile
+printf '	$(LINK) -o $@ $^ $(LIBS)' >> Makefile
+printf '\n\nclean:\n	rm -rf *.o *.d core ' >> Makefile
+printf "$main" >> Makefile
+printf '\n\ndebug: CXXFLAGS = -DDEBUG -g -std=c++11\n' >> Makefile
+printf "debug: $main" >> Makefile
+printf '\n\ntar: clean\n	tar zcvf ' >> Makefile
+printf "$main.tgz " >> Makefile
+printf '$(SOURCE) *.h Makefile' >> Makefile
+printf '\n\nhelp:' >> Makefile
+printf '\n	@echo \"	make ' >> Makefile
+printf "$main  - same as make all\"" >> Makefile
+printf '\n	@echo \"	make all   - builds the main target\"' >> Makefile
+printf '\n	@echo \"	make       - same as make all\"' >> Makefile
+printf '\n	@echo \"	make clean - remove .o .d core ' >> Makefile
+printf "$main" >> Makefile
+printf '\"\n	@echo \"	make debug - make all with -g and -DDEBUG\"' >> Makefile
+printf '\n	@echo \"	make tar   - make a tarball of .cpp and .h files\"' >> Makefile
+printf '\n	@echo \"	make help  - this message"' >> Makefile
+printf '\n\n-include $(SOURCE:.cpp=.d)' >> Makefile
+printf '\n\n%%.d: %%.cpp' >> Makefile
+printf '\n	@set -e; /usr/bin/rm -rf $@;$(GCC) -MM $< $(CXXFLAGS) > $@' >> Makefile
+

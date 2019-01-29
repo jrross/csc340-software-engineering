@@ -1,0 +1,220 @@
+<html>
+<title> Libraries - Dynamic and Static</title>
+<body>
+<h1><center>Libraries - Dynamic and Static</center></h1>
+<hr>
+We talked about the two types of libraries in class and there's nothing like
+practice to learn a new still.  Make a branch off the master branch for
+wa5 so you can practice with static and shared libraries.
+<p>
+Don't work on the master branch and don't merge your branch into the master
+branch (*cough* Luke *cough*).
+<p>
+There are some commands that are useful when creating and working with
+libraries:
+<ul>
+<li> <b>ar</b> - create, modify, and extract from archives (i.e. static libraries)
+<li> <b>ldd</b> - show shared library dependencies
+<li> <b>nm</b> - list symbols from object files
+<li> <b>ranlib</b> - generate index for archive library
+<li> <b>objdump</b> - display information from object files
+</ul>
+The linux <b>man</b> command is a good place to look if you need information
+on how to use commands or figure out which command line options you might
+need.
+<hr>
+There are some files in this directory for figuring out how this all works
+together.
+<ul>
+<li> <i>main.cpp</i> - The main program</li>
+<li> <i>functions.cpp</i> - Our 'library' source code</li>
+<li> <i>functions.h</i> - Prototypes for our library functions</li>
+<li> <i>Makefile</i> - Makefile to build the libraries and main executable</li>
+</ul>
+<hr>
+<pre>
+% make
+
+# Compile main to an object file.  -fPIC not necessary for main but doesn't hurt
+% g++ -Wall -fPIC -O3 -std=c++11   -c -o main.o main.cpp
+
+# Compile library to an object file.  -fPIC is necessary if it's going to be
+# used to create a shared library.
+% g++ -Wall -fPIC -O3 -std=c++11   -c -o functions.o functions.cpp
+
+# Take the library object file(s) and use the <i>ar</i> command to create an
+# archive
+% ar rs libMyLib.a functions.o
+
+# Create the <i>mainStatic</i> executable.  This links the main.o object file
+# and the libMyLib.a static library (archive)
+% g++ -o mainStatic main.o -lMyLib -L.
+
+# Create the shared library <i>libMyLib.so</i>
+% g++ -o libMyLib.so -shared functions.o
+
+# Link the main.o object file and the libMyLib.so shared library
+% g++ -o mainShared main.o libMyLib.so -lMyLib -L. -shared
+
+</pre>
+The above are the commands executed to compile and link two executables.  One
+is linked to a static library <b>libMyLib.a</b> and one is linked to a shared
+library <b>libMyLib.so</b>.  Type <b>ls -l</b> and observe the different
+executable sizes.
+<pre>
+% ls -l
+-rwxr-xr-x 1 phinker faculty  8392 Mar 17 16:05 mainShared
+-rwxr-xr-x 1 phinker faculty 13800 Mar 17 16:05 mainStatic
+</pre>
+Also note the size of the static library:
+<pre>
+-rw-r--r-- 1 phinker faculty  5294 Mar 17 16:05 libMyLib.a
+-rwxr-xr-x 1 phinker faculty 13184 Mar 17 16:05 libMyLib.so
+</pre>
+Note that the static library size is about the difference in the size between
+the shared and statically linked versions of the two executables.
+<p>
+Use some linux utilities to see what's going on:
+<pre>
+% nm main.o
+</pre>
+Most of that looks like garbage other than the <b>00000000000 T main</b> that
+looks like the main entry point for the executable.  C++ encodes some 
+information in the entry points so that the linker (<b>ld</b>) can do parameter
+and type checking during the link phase of compilation.  This encoding is
+usually referred to as C++ name mangling.  We can get <b>nm</b> to 'unmangle'
+the entry point names with the <b>-C</b> option:
+<pre>
+% nm -C main.o
+</pre>
+Now the output is almost readable.  We can see that the main.o file has a 
+number of undefined external references:
+<pre>
+U fn1()
+U fn2(int)
+U fn3(double)
+U fn4(char const*)
+</pre>
+Among other references to I/O library and GLOBAL symbols.  Let's use the
+same command on the libraries:
+<pre>
+% nm -C libMyLib.a
+</pre>
+We can see some of those undefined references in main (namely fn1, fn2, fn3,
+fn4) are defined in the libMyLib.a archive.  We also see that the library
+has some undefined references of its own (e.g. std::ostream::put, std::ostream::operator&lt;&lt;(int), etc.).
+<p>
+The same command issued on the shared library <b>libMyLib.so</b> shows similar
+results with some additional defined and undefined things for doing the
+runtime support of the dynamic linking.
+<p>
+Now, we can run the mainStatic executable:
+<pre>
+% mainStatic &gt; file.xml
+</pre>
+The program writes out a tracefile in .xml format that shows you the function
+calls.  You can look at it with a browser or other .xml viewer.
+<p>
+If we try to run the <b>mainShared</b> executable, we get a strange error
+message:
+<pre>
+% mainShared
+mainShared: error while loading shared libraries: libMyLib.so: cannot open shared object file: No such file or directory
+</pre>
+This seems strange since we <i><b>just</b></i> linked the executable to the
+library.  What's going on?  We can use another of the utilities listed above
+to try and figure out what's happening.
+<pre>
+% ldd mainShared
+	linux-vdso.so.1 =&gt;  (0x00007ffd33d60000)
+	libMyLib.so =&gt; not found
+	libstdc++.so.6 =&gt; /lib64/libstdc++.so.6 (0x00007fefa065c000)
+	libm.so.6 =&gt; /lib64/libm.so.6 (0x00007fefa035a000)
+	libgcc_s.so.1 =&gt; /lib64/libgcc_s.so.1 (0x00007fefa0143000)
+	libc.so.6 =&gt; /lib64/libc.so.6 (0x00007fef9fd80000)
+	/lib64/ld-linux-x86-64.so.2 (0x000055cd228f1000)
+</pre>
+You can see that the mainShared executable is referencing a number of shared
+libraries (the left-hand-side of the =&gt;).  linux-vdso.so.1, libMyLib.so,
+libstdc++.so.6, etc.
+<p>
+You'll notice that the libMyLib.so is listed as 'not found' even though it's
+in our current working directory.  When we linked the executable together
+we gave a relative path to search for libraries (<b>-L.</b>) which says, look
+in the current directory for libraries.  The runtime system doesn't know that
+it's supposed to look in the local directory to resolve dynamic library
+references.  There are a couple ways we can tell it to do that.  We can
+set and environment variable:
+<pre>
+% export LD_LIBRARY_PATH=.
+</pre>
+That says, set the load library path to the current directory.  If we type
+the ldd command again, we get a different result.
+<pre>
+% ldd mainShared
+	linux-vdso.so.1 =&gt;  (0x00007fff488e0000)
+	libMyLib.so =&gt; ./libMyLib.so (0x00007efcd168d000)
+	libstdc++.so.6 =&gt; /lib64/libstdc++.so.6 (0x00007efcd1352000)
+	libm.so.6 =&gt; /lib64/libm.so.6 (0x00007efcd1050000)
+	libgcc_s.so.1 =&gt; /lib64/libgcc_s.so.1 (0x00007efcd0e3a000)
+	libc.so.6 =&gt; /lib64/libc.so.6 (0x00007efcd0a76000)
+	/lib64/ld-linux-x86-64.so.2 (0x000055febfc09000)
+</pre>
+Now, if we try to run the executable, we get the expected result.  Another way
+to let the runtime system know where to go to look for dynamic libraries is
+by encoding paths into the executable itself:
+<pre>
+% g++ -o mainShared main.cpp -L. -lMyLib -Wl,-rpath=.
+% ldd mainShared
+	linux-vdso.so.1 =&gt;  (0x00007ffdf96fd000)
+	libMyLib.so =&gt; ./libMyLib.so (0x00007f2d5fcea000)
+	libstdc++.so.6 =&gt; /lib64/libstdc++.so.6 (0x00007f2d5f9af000)
+	libm.so.6 =&gt; /lib64/libm.so.6 (0x00007f2d5f6ad000)
+	libgcc_s.so.1 =&gt; /lib64/libgcc_s.so.1 (0x00007f2d5f497000)
+	libc.so.6 =&gt; /lib64/libc.so.6 (0x00007f2d5f0d3000)
+	/lib64/ld-linux-x86-64.so.2 (0x000055f2d9f47000)
+</pre>
+Note that if you move the executable into another directory, it will still look
+in the directory which it now is in.  Unless you move the library to that same
+directory, it will not be able to find it at runtime.
+<p>
+<b>So, what's the assignment?</b><br>
+<hr>
+Create two shared libraries from the same source file(s).  One is the 'release'
+version and one is the 'debugging' version.  Have the release version output
+some message that indicates it's working.  Use conditional compilation to
+embed trace/logging/debugging information into the library and compile the
+debugging version of the library as well.  Because these are both shared 
+libraries I should be able to switch between the two by simply setting the
+LD_LIBRARY_PATH environment variable to select which library I'm using.  This
+is similar to the way that the system is able to switch between architecture
+specific libraries.  If you look back at the ldd mainShared command (above)
+you'll see entries like these:
+<pre>
+libm.so.6 =&gt; /lib64/libm.so.6
+libc.so.6 =&gt; /lib64/libc.so.6
+</pre>
+If you look in the /lib directory, you'll see libraries by the same name.  These
+are the 32-bit versions of those libraries and the runtime system switches
+between those library search paths by knowing which OS version 
+(64-bit or 32-bit) is currently running.
+<p>
+I should be able to do the following once you're done:
+<pre>
+% make
+[builds release/libMyLib.so]
+[builds debug/libMyLib.so]
+[builds main]
+% export LD_LIBRARY_PATH=./release
+% main
+Running Release version
+% export LD_LIBRARY_PATH=./debug
+% main
+Running Debug version
+[insert debugging / trace / logging information here]
+</pre>
+Next week we'll look at adding versions to our shared libraries and see how
+that can be used to ensure that main program and library compatibility is
+enforced.
+</body>
+</html>

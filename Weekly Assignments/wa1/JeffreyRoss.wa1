@@ -1,0 +1,27 @@
+#!/bin/bash
+#Script to parse HTML files for grades as: classID:section:name:grade:gpa:repeat:term
+#Run with JeffreyRoss.wa1 grades.html
+
+count=1
+#step through class numbers while they exist
+while grep -q -F \"VAR_STC_COURSE_NAME_$count\" $1
+do
+	#get the data for the individual fields for each class
+	classDetails=$(grep -F id=\"VAR_STC_COURSE_NAME_$count\" $1 | cut -d'>' -f2 | cut -d'<' -f1 | sed 's/ /:/')
+	#Checking to see if there is a section number or not, apply proper syntax
+	if grep -q 'M[0-9]' <<< $classDetails
+	then
+		classDetails=$(sed 's/ /:/' <<< $classDetails)
+	else
+		classDetails=$(sed 's/:/::/' <<< $classDetails)
+	fi
+	grade=$(grep -F id=\"VAR_STC_VERIFIED_GRADE_$count\" $1 | cut -d'>' -f2 | cut -d'<' -f1)
+	gpa=$(grep -F id=\"VAR_STC_CMPL_CRED_$count\" $1 | cut -d'>' -f2 | cut -d'<' -f1)
+	repeat=$(grep -F id=\"VAR_STC_REPL_CODE_$count\" $1 | cut -d'>' -f2 | cut -d'<' -f1)
+	term=$(grep -F id=\"VAR_STC_TERM_$count\" $1 | cut -d'>' -f2 | cut -d'<' -f1)
+
+
+	echo $classDetails':'$grade':'$gpa':'$repeat':'$term
+	count=$[count+1]
+done
+

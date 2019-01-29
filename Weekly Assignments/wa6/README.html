@@ -1,0 +1,47 @@
+<html>
+<title>CSC 340 - Spring 2018 - Weekly Assignment 6 - Makefile Generator</title>
+<body>
+<h1><center>CSC 340 - Weekly Assignment 6 - Makefile Generator</center></h1>
+<hr>
+This week we're going to create a handy little script that will take the source
+files in a directory and create a Makefile.  Many times you'll run into a 
+situation where you have either written a small program that has a source
+file or two and you want a standard sort of makefile because the default
+make behavior isn't quite enough to do what you want.  In the spirit of saving
+a day a week for the rest of your career, we're going to automate one of those
+tasks.
+<p>
+<b>The Assignment (due Apr. 6)</b><br>
+In the directory you'll find a number of source and include files as well as
+a perl script named <i>buildMakefile</i> as an example.  To run the script:
+<pre>
+% ./buildMakefile
+% make
+</pre>
+If you look at the generated Makefile you'll see that it has a number of
+default targets.
+<ul>
+<li> all - makes the executable program
+<li> program - makes the executable program
+<li> clean - removes .o files, .d files, executable program
+<li> debug - changes compilation flags and compiles the program with debug information
+<li> tar - generates a tarfile that contains the source files, include files, and Makefile
+<li> help - target that outputs a description of all the targets supported by the makefile
+</ul>
+You can write a bash script, python script, perl script, awk script, etc.  
+No high level language (i.e. a compiled language) It
+needs to be able to examine a directory and create a simple Makefile with,
+at a minimum, targets to build the main executable, clean the directory, and
+create a debuggable version of the main executable.  You can add other target
+types if you want.
+<p>
+Make sure you test your script with zero, one, and more source / include
+files.  Issue error messages for the following conditions:
+<ul>
+<li> No source files found
+<li> No source file with main entry point found
+<li> More than one file with the main entry point was found
+</ul>
+Work on your own branch, don't putback or merge to the master branch.
+</body>
+</html>
